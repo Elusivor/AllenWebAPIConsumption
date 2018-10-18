@@ -17,6 +17,7 @@ namespace AllenWebAPIConsumption
         static HttpClient _client;
         public string _currentToken;
         public List<SmallSchool> _schoolNames;
+        public SchoolData _schoolDetails;
         public Form1()
         {
             InitializeComponent();
@@ -29,12 +30,30 @@ namespace AllenWebAPIConsumption
             };
         }
 
-        private async void button1_Click(object sender, EventArgs e)
+        private async Task GetToken()
         {
             _currentToken = await GetTokenAsync();
             label1.Text = $"Token <{_currentToken}>";
         }
+        #region Buttons
+        private async void button1_Click(object sender, EventArgs e)
+        {
+            await GetToken();
+        }
+        private async void button2_Click(object sender, EventArgs e)
+        {
+            comboBox1.Items.Clear();
+            if (_currentToken == null)
+                await GetToken();
+            _schoolNames = await GetSchoolNamesAsync();
 
+            foreach (var item in _schoolNames)
+            {
+                comboBox1.Items.Add(item);
+            }
+        }
+
+        #endregion
         async Task<string> GetTokenAsync()
         {
             HttpResponseMessage response = await _client.GetAsync("GetToken");
@@ -50,7 +69,6 @@ namespace AllenWebAPIConsumption
         }
         async Task<List<SmallSchool>> GetSchoolNamesAsync()
         {
-
             HttpResponseMessage response = await _client.GetAsync($"GetAllSchoolNames/{_currentToken}");
 
 
@@ -64,15 +82,28 @@ namespace AllenWebAPIConsumption
 
             return null;
         }
-
-        private async void button2_Click(object sender, EventArgs e)
+        async Task<SchoolData> GetSchoolByIdAsync(int SchoolID)
         {
-            _schoolNames = await GetSchoolNamesAsync();
-
-            foreach (var item in _schoolNames)
+            HttpResponseMessage response = await _client.GetAsync($"GetSchoolById/{_currentToken}/{SchoolID}");
+            if (response.IsSuccessStatusCode)
             {
-                comboBox1.Items.Add(item);
-            }            
+                var serverRsp = await response.Content.ReadAsStringAsync();
+                var rsp = JObject.Parse(serverRsp).ToObject<SchoolData>();
+                return rsp;
+            }
+            return null;
+        }
+
+        private async void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            foreach (var school in _schoolNames)
+            {
+                if (comboBox1.SelectedItem == school)
+                {
+                    _schoolDetails = await GetSchoolByIdAsync(school.SchoolID);
+                    richTextBox1.Text = _schoolDetails.ToString();
+                }
+            }
         }
     }
 }
